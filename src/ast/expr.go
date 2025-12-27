@@ -76,7 +76,7 @@ type FunctionLiteral struct {
 
 func (f *FunctionLiteral) expressionNode() {}
 func (f *FunctionLiteral) String() string {
-	return fmt.Sprintf("[%s -> %s]", f.Parameter, f.Body.String())
+	return fmt.Sprintf("[%s; %s]", f.Parameter, f.Body.String())
 }
 func (f *FunctionLiteral) Debug() string {
 	return fmt.Sprintf("{ Type: Function, Parameter: %s, Body: %s }",

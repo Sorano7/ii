@@ -30,8 +30,12 @@ func createRepl(out io.Writer) *REPL {
 
 func (r *REPL) evaluateAndPrint(input string) {
 	result := r.evaluate(input)
-	if result == nil || result.String() == "" {
+	if result == nil {
 		return		
+	}
+	result = r.eval.force(result)
+	if result == nil {
+		return
 	}
 	fmt.Fprintln(r.out, result.String())
 }
@@ -103,8 +107,12 @@ func (r *REPL) LoadFile(filename string, clearEnv bool, printMain bool) {
 	}
 	_ = r.evaluate(string(bytes))
 
-	if value, ok := r.env.Get("main"); ok && printMain {
-		fmt.Fprintln(r.out, value.String())
+	if value, ok := r.env.Get("main"); ok {
+		value = r.eval.force(value)
+
+		if printMain || isError(value) {
+			fmt.Fprintln(r.out, value.String())
+		}
 	}
 
 	if clearEnv {

@@ -65,10 +65,20 @@ func desugarExpression(node ast.Expression) ast.Expression {
 		}
 
 	case *ast.PipeExpression:
-		return &ast.PipeExpression{
-			Left: desugarExpression(n.Left),
-			Direction: n.Direction,
-			Right: desugarExpression(n.Right),
+		switch n.Direction {
+		case "<<", "<>":
+			return &ast.CallExpression{
+				Function: desugarExpression(n.Left),
+				Argument: desugarExpression(n.Right),
+			}
+		case ">>":
+			return &ast.CallExpression{
+				Function: desugarExpression(n.Right),
+				Argument: desugarExpression(n.Left),
+			}
+
+		default:
+			panic("Unknown pipe direction")
 		}
 
 	case *ast.ArrayLiteral:

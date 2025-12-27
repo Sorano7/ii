@@ -46,6 +46,7 @@ func (n *Nil) Type() ValueType { return NilValue }
 func (n *Nil) String() string  { return "nil" }
 
 type Function struct {
+	Name      string
 	Parameter string
 	Body      ast.Expression
 	Env       *Environment
@@ -62,13 +63,15 @@ func (f *Function) renderString(seen map[*Function]bool) string {
 	seen[f] = true
 	body := renderExpressionWithEnv(f.Body, f.Env, seen)
 	delete(seen, f)
-	return fmt.Sprintf("[%s -> %s]", f.Parameter, body)
+	return fmt.Sprintf("[%s; %s]", f.Parameter, body)
 }
 
 func renderExpressionWithEnv(expr ast.Expression, env *Environment, seen map[*Function]bool) string {
 	if expr == nil {
 		return ""
 	}
+
+	renderEval := createEvaluator()
 
 	switch node := expr.(type) {
 	case *ast.NumberLiteral:
@@ -98,6 +101,43 @@ func renderExpressionWithEnv(expr ast.Expression, env *Environment, seen map[*Fu
 				delete(seen, v)
 				return s
 
+			case *Thunk:
+				if v.bindingName != "" && v.bindingName == node.Value {
+					if !v.evaluated {
+						return node.String()
+					}
+					if _, ok := v.value.(*Function); ok {
+						return node.String()
+					}
+				}
+
+				if !v.evaluated {
+					forced := v.Force(renderEval)
+					return forced.String()
+				}
+
+				if v.evaluated && v.value != nil {
+					switch inner := v.value.(type) {
+					case *Number, *Char, *Error, *Undefined:
+						return inner.String()
+					case *Function:
+						if seen == nil {
+							seen = make(map[*Function]bool)
+						}
+						if seen[inner] {
+							return node.String()
+						}
+						seen[inner] = true
+						s := inner.renderString(seen)
+						delete(seen, inner)
+						return s
+					default:
+						return inner.String()
+					}
+				}
+
+				return v.String()
+
 			default:
 				return val.String()
 			}
@@ -114,7 +154,7 @@ func renderExpressionWithEnv(expr ast.Expression, env *Environment, seen map[*Fu
 
 	case *ast.FunctionLiteral:
 		body := renderExpressionWithEnv(node.Body, env, seen)
-		return fmt.Sprintf("[%s -> %s]", node.Parameter, body)
+		return fmt.Sprintf("[%s; %s]", node.Parameter, body)
 
 	case *ast.CallExpression:
 		fn := renderExpressionWithEnv(node.Function, env, seen)
@@ -163,10 +203,11 @@ func (u *Undefined) String() string {
 }
 
 type Thunk struct {
-	expr      ast.Expression
-	env       *Environment
-	evaluated bool
-	value     Value
+	expr        ast.Expression
+	env         *Environment
+	evaluated   bool
+	value       Value
+	bindingName string
 }
 
 func (t *Thunk) Type() ValueType { return ThunkValue }
@@ -188,6 +229,13 @@ func (t *Thunk) Force(e *Evaluator) Value {
 		t.value = &Undefined{}
 	} else {
 		t.value = e.Evaluate(t.expr, t.env)
+		if t.bindingName != "" {
+			if fn, ok := t.value.(*Function); ok {
+				if fn.Name == "" {
+					fn.Name = t.bindingName
+				}
+			}
+		}
 	}
 	t.evaluated = true
 	return t.value

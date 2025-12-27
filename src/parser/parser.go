@@ -23,7 +23,7 @@ const (
 var precedences = map[lexer.TokenType]precedence{
 	lexer.PipeL:         Pipeline,
 	lexer.PipeR:         Pipeline,
-	lexer.PipeDot:       Pipeline,
+	lexer.PipeRev:       Pipeline,
 	lexer.Equals:        Equals,
 	lexer.NotEquals:     Equals,
 	lexer.Less:          LessMore,
@@ -119,7 +119,7 @@ func createParser(tokens []lexer.Token) *parser {
 		lexer.Greater, lexer.GreaterEquals,
 	)
 	p.registerInfix(p.parseCallExpression, lexer.LParen)
-	p.registerInfix(p.parsePipeExpression, lexer.PipeL, lexer.PipeR, lexer.PipeDot)
+	p.registerInfix(p.parsePipeExpression, lexer.PipeL, lexer.PipeR, lexer.PipeRev)
 	p.registerInfix(p.parseLambdaExpression, lexer.Lambda)
 
 	return p

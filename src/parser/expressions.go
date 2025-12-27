@@ -231,7 +231,7 @@ func (p *parser) parsePipeExpression(left ast.Expression) ast.Expression {
 	switch expr.Direction {
 	case "<<":
 		prec++
-	case "..":
+	case "<>":
 		prec--
 	}
 	expr.Right = p.parseExpression(prec)

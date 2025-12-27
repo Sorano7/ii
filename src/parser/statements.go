@@ -6,7 +6,7 @@ import (
 )
 
 func (p *parser) parseStatement() ast.Statement {
-	if !p.currentTokenIs(lexer.Identifier) || !p.nextTokenIs(lexer.Colon) {
+	if !p.currentTokenIs(lexer.Identifier) || !p.nextTokenIs(lexer.Assignment) {
 		return p.parseExpressionStatement()
 	}
 	return p.parseBindingStatement()
@@ -16,7 +16,7 @@ func (p *parser) parseBindingStatement() *ast.BindingStatement {
 	stmt := &ast.BindingStatement{
 		Name: p.currentToken().Value,
 	}
-	if !p.nextTokenIs(lexer.Colon) {
+	if !p.nextTokenIs(lexer.Assignment) {
 		return nil
 	}
 

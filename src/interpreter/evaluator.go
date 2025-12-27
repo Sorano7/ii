@@ -66,9 +66,6 @@ func (e *Evaluator) Evaluate(node ast.Node, env *Environment) Value {
 			arg = &Thunk{expr: node.Argument, env: env}
 		}
 		return e.applyFunction(f, arg)
-
-	case *ast.PipeExpression:
-		return e.evalPipe(node, env)
 	}
 
 	return error("Unknown node type: %T", node)
@@ -90,8 +87,8 @@ func (e *Evaluator) evalBinding(node *ast.BindingStatement, env *Environment) Va
 	if env.Has(node.Name) {
 		return error("'%s' is already defined", node.Name)
 	}
-	
-	val := &Thunk{expr: node.Value, env: env}
+
+	val := &Thunk{expr: node.Value, env: env, bindingName: node.Name}
 	env.Set(node.Name, val)
 	return val
 }
@@ -139,7 +136,7 @@ func (e *Evaluator) evalInfix(operator string, left, right Value, env *Environme
 	if isError(left) || isError(right) {
 		return left
 	}
-	
+
 	switch {
 	case left.Type() == NumberValue && right.Type() == NumberValue:
 		return e.evalNumberInfix(operator, left, right, env)
@@ -232,7 +229,7 @@ func (e *Evaluator) applyFunction(f Value, arg Value) Value {
 	if isError(f) {
 		return f
 	}
-	
+
 	fn, ok := f.(*Function)
 	if !ok {
 		return error("Not a function: %s", f.String())
@@ -253,22 +250,6 @@ func (e *Evaluator) applyFunction(f Value, arg Value) Value {
 	childEnv := NewEnvIn(fn.Env)
 	childEnv.Set(fn.Parameter, arg)
 	return e.Evaluate(fn.Body, childEnv)
-}
-
-func (e *Evaluator) evalPipe(node *ast.PipeExpression, env *Environment) Value {
-	l := e.Evaluate(node.Left, env)
-	if isError(l) {
-		return l
-	}
-	r := e.Evaluate(node.Right, env)
-	if isError(r) {
-		return r
-	}
-
-	if node.Direction == ">>" {
-		return e.applyFunction(r, l)
-	}
-	return e.applyFunction(l, r)
 }
 
 func (e *Evaluator) force(v Value) Value {

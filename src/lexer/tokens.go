@@ -23,11 +23,12 @@ const (
 	RCurly
 
 	// -- Operators
-	Colon
+	Assignment
 	Lambda
 	PipeL
+	PipeRev
 	PipeR
-	PipeDot
+	Dot
 	Comma
 
 	// -- Comparison
@@ -63,11 +64,12 @@ var TokenTypeNames = map[TokenType]string{
 	RBracket:      "RBracket",
 	LCurly:        "LCurly",
 	RCurly:        "RCurly",
-	Colon:         "Colon",
+	Assignment:    "Assignment",
 	Lambda:        "Lambda",
 	PipeL:         "PipeL",
 	PipeR:         "PipeR",
-	PipeDot:       "PipeDot",
+	PipeRev:       "PipeRev",
+	Dot:           "Dot",
 	Comma:         "Comma",
 	Equals:        "Equals",
 	NotEquals:     "NotEquals",
