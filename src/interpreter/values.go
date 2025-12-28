@@ -3,13 +3,19 @@ package interpreter
 import (
 	"fmt"
 	"lambda/src/ast"
+	"strings"
 )
 
 type ValueType string
 
 const (
+	BoolValue      ValueType = "Bool"
+	BoolThunkValue ValueType = "BoolThunk"
 	NumberValue    ValueType = "Number"
 	CharValue      ValueType = "Char"
+	PairValue      ValueType = "Pair"
+	ArrayValue     ValueType = "Array"
+	StringValue    ValueType = "String"
 	FunctionValue  ValueType = "Function"
 	NilValue       ValueType = "Nil"
 	ErrorValue     ValueType = "Error"
@@ -21,6 +27,31 @@ const (
 type Value interface {
 	Type() ValueType
 	String() string
+}
+
+type Bool struct {
+	Value bool
+}
+
+func (b *Bool) Type() ValueType { return BoolValue }
+func (b *Bool) String() string {
+	if b.Value {
+		return "true"
+	}
+	return "false"
+}
+
+type BoolThunk struct {
+	Cond bool
+	First Value
+}
+
+func (b *BoolThunk) Type() ValueType { return BoolThunkValue }
+func (b *BoolThunk) String() string { 
+	if b.Cond {
+		return fmt.Sprintf("[x; %s]", b.First.String())
+	}
+	return "[x; x]" 
 }
 
 type Number struct {
@@ -38,8 +69,53 @@ type Char struct {
 
 func (c *Char) Type() ValueType { return CharValue }
 func (c *Char) String() string {
-	return c.Value
+	return "'" + c.Value + "'"
 }
+
+type Pair struct {
+	First  Value
+	Second Value
+	Env    *Environment
+}
+
+func (p *Pair) Type() ValueType { return PairValue }
+func (p *Pair) String() string {
+	e := createEvaluator()
+	fst := e.force(p.First)
+	if isError(fst) {
+		return fst.String()
+	}
+	snd := e.force(p.Second)
+	if isError(snd) {
+		return snd.String()
+	}
+	return fmt.Sprintf("[%s, %s]", fst.String(), snd.String())
+}
+
+type Array struct {
+	Elements []Value
+}
+
+func (a *Array) Type() ValueType { return ArrayValue }
+func (a *Array) String() string {
+	e := createEvaluator()
+	elStrings := make([]string, 0)
+	for _, el := range a.Elements {
+		forced := e.force(el)
+		if isError(forced) {
+			return forced.String()
+		}
+		elStrings = append(elStrings, forced.String())
+	}
+	return fmt.Sprintf("{ %s }", strings.Join(elStrings, ", "))
+}
+
+type String struct {
+	Value string
+}
+
+func (s *String) Type() ValueType { return StringValue }
+func (s *String) String() string  { return "\"" + s.Value + "\"" }
 
 type Nil struct{}
 
@@ -214,7 +290,7 @@ type Thunk struct {
 func (t *Thunk) Type() ValueType { return ThunkValue }
 func (t *Thunk) String() string {
 	if !t.evaluated {
-		return "<thunk>"
+		t.value = createEvaluator().Evaluate(t.expr, t.env)
 	}
 	if t.value == nil {
 		return "undefined"
@@ -248,5 +324,5 @@ type Builtin struct {
 	Fn   BuiltinFunction
 }
 
-func (b *Builtin) Type() ValueType{ return BuiltinValue }
-func (b *Builtin) String() string { return fmt.Sprintf("<builtin:%s>", b.Name) }
+func (b *Builtin) Type() ValueType { return BuiltinValue }
+func (b *Builtin) String() string  { return fmt.Sprintf("<builtin:%s>", b.Name) }

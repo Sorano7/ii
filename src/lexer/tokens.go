@@ -33,6 +33,7 @@ const (
 	Comma
 	If
 	Else
+	Ellipsis
 
 	// -- Comparison
 	Equals
@@ -85,6 +86,7 @@ var TokenTypeNames = map[TokenType]string{
 	Comma:         "Comma",
 	If:            "If",
 	Else:          "Else",
+	Ellipsis:      "Ellipsis",
 	Equals:        "Equals",
 	NotEquals:     "NotEquals",
 	Less:          "Less",

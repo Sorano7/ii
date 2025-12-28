@@ -1,7 +1,6 @@
 package lexer
 
 import (
-	"fmt"
 	"regexp"
 	"slices"
 )
@@ -44,7 +43,7 @@ func Tokenize(src string) []Token {
 		matched := slices.ContainsFunc(lex.patterns, matchHandler)
 
 		if !matched {
-			panic(fmt.Sprintf("Unrecognized token near %s\n", lex.remainder()))
+			return nil
 		}
 	}
 
@@ -83,10 +82,21 @@ func symbolHandler(lex *lexer, regex *regexp.Regexp) {
 
 	type_, ok := ReservedKeywords[match]
 
-	if !ok { type_ = Identifier }
+	if !ok {
+		type_ = Identifier
+	}
 
 	lex.push(Token{type_, match})
 	lex.advance(len(match))
+}
+
+func quoteHandler(t TokenType) patternHandler {
+	return func(lex *lexer, regex *regexp.Regexp) {
+		match := regex.FindString(lex.remainder())
+		literal := match[1 : len(match)-1]
+		lex.push(Token{t, literal})
+		lex.advance(len(match))
+	}
 }
 
 func createLexer(src string) *lexer {
@@ -97,8 +107,8 @@ func createLexer(src string) *lexer {
 		patterns: []pattern{
 			{regexp.MustCompile(`[a-zA-Z_][a-zA-Z0-9_]*`), symbolHandler},
 			{regexp.MustCompile(`[0-9]+(\.[0-9]+)?`), defaultHandler(Number)},
-			{regexp.MustCompile(`"[^"]*"`), defaultHandler(String)},
-			{regexp.MustCompile(`'[^']'`), defaultHandler(Char)},
+			{regexp.MustCompile(`"[^"]*"`), quoteHandler(String)},
+			{regexp.MustCompile(`'[^']'`), quoteHandler(Char)},
 			{regexp.MustCompile(`\[`), defaultHandler(LBracket)},
 			{regexp.MustCompile(`\]`), defaultHandler(RBracket)},
 			{regexp.MustCompile(`\(`), defaultHandler(LParen)},
@@ -107,6 +117,7 @@ func createLexer(src string) *lexer {
 			{regexp.MustCompile(`\}`), defaultHandler(RCurly)},
 			{regexp.MustCompile(`\?\?`), defaultHandler(If)},
 			{regexp.MustCompile(`!!`), defaultHandler(Else)},
+			{regexp.MustCompile(`\.\.`), defaultHandler(Ellipsis)},
 			{regexp.MustCompile(`;`), defaultHandler(Lambda)},
 			{regexp.MustCompile(`::`), defaultHandler(Assignment)},
 			{regexp.MustCompile(`,`), defaultHandler(Comma)},

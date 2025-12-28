@@ -24,30 +24,34 @@ func createRepl(out io.Writer) *REPL {
 		eval: createEvaluator(),
 		out: out,
 	}
-	repl.LoadFile("lib/prelude.ii", false, false)
+	repl.execFile("lib/prelude.ii", false, false)
 	return repl
 }
 
 func (r *REPL) evaluateAndPrint(input string) {
-	result := r.evaluate(input)
+	result := r.evaluate(input, false)
 	if result == nil {
 		return		
 	}
 	result = r.eval.force(result)
-	if result == nil {
+	if result == nil || result.String() == "" {
 		return
 	}
 	fmt.Fprintln(r.out, result.String())
 }
 
-func (r *REPL) evaluate(src string) Value {
+func (r *REPL) evaluate(src string, noExpr bool) Value {
 	program, ok := parser.Parse(src)
 	if !ok {
 		fmt.Fprintln(r.out, "[Error] Invalid syntax")
 		return nil
 	}
 	program = desugarProgram(program)
-	return r.eval.Evaluate(program, r.env)
+	allowedCount := 1
+	if noExpr {
+		allowedCount = 0
+	}
+	return r.eval.EvaluateProgram(program, r.env, allowedCount)
 }
 
 func (r *REPL) handleCommand(input string) bool {
@@ -69,19 +73,19 @@ func (r *REPL) handleCommand(input string) bool {
 
 	case ":l", ":load":
 		if len(parts) > 1 {
-			r.LoadFile(parts[1], false, false)
+			r.execFile(parts[1], false, false)
 		}
 		return true
 
 	case ":e", ":exec":
 		if len(parts) > 1 {
-			r.LoadFile(parts[1], true, true)
+			r.execFile(parts[1], true, true)
 		}
 		return true
 
 	case ":a", ":ast":
 		if len(parts) > 1 {
-			r.PrintAST(strings.Join(parts[1:], ""))
+			r.printAST(strings.Join(parts[1:], ""))
 		}
 		return true
 	}
@@ -89,7 +93,7 @@ func (r *REPL) handleCommand(input string) bool {
 	return true
 }
 
-func (r *REPL) PrintAST(src string) {
+func (r *REPL) printAST(src string) {
 	program, ok := parser.Parse(src)
 	if !ok {
 		fmt.Fprintln(r.out, "[Error] Invalid syntax")
@@ -99,13 +103,13 @@ func (r *REPL) PrintAST(src string) {
 	fmt.Fprint(r.out, program.Debug())
 }
 
-func (r *REPL) LoadFile(filename string, clearEnv bool, printMain bool) {
+func (r *REPL) execFile(filename string, clearEnv bool, printMain bool) {
 	bytes, err := os.ReadFile(filename)
 	if err != nil {
 		fmt.Fprintf(r.out, "[Error] %s\n", err)
 		return
 	}
-	_ = r.evaluate(string(bytes))
+	_ = r.evaluate(string(bytes), true)
 
 	if value, ok := r.env.Get("main"); ok {
 		value = r.eval.force(value)
@@ -148,7 +152,7 @@ func StartREPL(in io.Reader, out io.Writer) {
 	}
 }
 
-func ExecuteFile(filename string, out io.Writer) {
+func ExecuteFile(filename string, out io.Writer, printResult bool) {
 	repl := createRepl(out)
-	repl.LoadFile(filename, false, true)
+	repl.execFile(filename, false, printResult)
 }

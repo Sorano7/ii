@@ -309,6 +309,21 @@ func (p *parser) parseArrayLiteral() ast.Expression {
 
 	array := &ast.ArrayLiteral{Elements: make([]ast.Expression, 0)}
 
+	head := p.parseExpression(Lowest)
+	if head == nil {
+		return nil
+	}
+
+	if p.currentTokenIs(lexer.Ellipsis) {
+		return p.parseSequence(head)
+	}
+
+	array.Elements = append(array.Elements, head)
+	
+	if p.currentTokenIs(lexer.Comma) {
+		p.advance()
+	}
+
 	for !p.currentTokenIs(lexer.RCurly) {
 		expr := p.parseExpression(Lowest)
 		if expr == nil {
@@ -332,4 +347,26 @@ func (p *parser) parseArrayLiteral() ast.Expression {
     }
 
 	return array
+}
+
+func (p *parser) parseSequence(head ast.Expression) ast.Expression {
+	a, ok := head.(*ast.NumberLiteral)
+	if !ok {
+		return nil
+	}
+	p.advance()
+	b, ok := p.parseExpression(Lowest).(*ast.NumberLiteral)
+	if !ok {
+		return nil
+	}
+	if _, ok := p.consume(lexer.RCurly); !ok {
+		return nil
+	}
+	return &ast.CallExpression{
+		Function: &ast.CallExpression{
+			Function: &ast.Identifier{Value: "seq"},
+			Argument: a,
+		},
+		Argument: b,
+	}
 }

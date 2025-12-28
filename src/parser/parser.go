@@ -10,7 +10,7 @@ type precedence int
 const (
 	_ precedence = iota
 	Lowest
-	Pipeline
+	Control
 	Equals
 	LessMore
 	Sum
@@ -21,10 +21,10 @@ const (
 )
 
 var precedences = map[lexer.TokenType]precedence{
-	lexer.LPipe:         Pipeline,
-	lexer.RPipe:         Pipeline,
-	lexer.Diamond:       Pipeline,
-	lexer.If:            Pipeline,
+	lexer.LPipe:         Control,
+	lexer.RPipe:         Control,
+	lexer.Diamond:       Control,
+	lexer.If:            Control,
 	lexer.Equals:        Equals,
 	lexer.NotEquals:     Equals,
 	lexer.Less:          LessMore,
@@ -131,6 +131,9 @@ func createParser(tokens []lexer.Token) *parser {
 
 func Parse(src string) (*ast.Program, bool){
 	tokens := lexer.Tokenize(src)
+	if tokens == nil {
+		return nil, false
+	}
 
 	program := &ast.Program{Statements: []ast.Statement{}}
 	p := createParser(tokens)
