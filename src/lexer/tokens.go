@@ -13,6 +13,7 @@ const (
 	// -- Literals
 	Number
 	Char
+	String
 
 	// -- Brackets
 	LParen
@@ -25,11 +26,13 @@ const (
 	// -- Operators
 	Assignment
 	Lambda
-	PipeL
-	PipeRev
-	PipeR
+	RPipe
+	LPipe
+	Diamond
 	Dot
 	Comma
+	If
+	Else
 
 	// -- Comparison
 	Equals
@@ -54,10 +57,19 @@ var ReservedKeywords = map[string]TokenType{
 
 }
 
+var ComparisonOps = []TokenType {
+	Equals, NotEquals, Less, LessEquals, Greater, GreaterEquals,
+}
+
+var ArithmeticOps = []TokenType {
+	Plus, Dash, Slash, Star, Percent,
+}
+
 var TokenTypeNames = map[TokenType]string{
 	EOF:           "EOF",
 	Number:        "Number",
 	Char:          "Char",
+	String:        "String",
 	LParen:        "LParen",
 	RParen:        "RParen",
 	LBracket:      "LBracket",
@@ -66,11 +78,13 @@ var TokenTypeNames = map[TokenType]string{
 	RCurly:        "RCurly",
 	Assignment:    "Assignment",
 	Lambda:        "Lambda",
-	PipeL:         "PipeL",
-	PipeR:         "PipeR",
-	PipeRev:       "PipeRev",
+	LPipe:         "LPipe",
+	RPipe:         "RPipe",
+	Diamond:       "Diamond",
 	Dot:           "Dot",
 	Comma:         "Comma",
+	If:            "If",
+	Else:          "Else",
 	Equals:        "Equals",
 	NotEquals:     "NotEquals",
 	Less:          "Less",

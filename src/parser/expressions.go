@@ -62,6 +62,12 @@ func (p *parser) parseCharLiteral() ast.Expression {
 	return c
 }
 
+func (p *parser) parseStringLiteral() ast.Expression {
+	s := &ast.StringLiteral{Value: p.currentToken().Value}
+	p.advance()
+	return s
+}
+
 func (p *parser) parsePrefixExpression() ast.Expression {
 	expr := &ast.PrefixExpression{
 		Operator: p.currentToken().Value,
@@ -148,9 +154,13 @@ func (p *parser) parsePair() ast.Expression {
 	}
 }
 
-func (p *parser) parseLambdaOrPair() ast.Expression {
+func (p *parser) parseFunctionOrPair() ast.Expression {
 	if _, ok := p.consume(lexer.LBracket); !ok {
 		return nil
+	}
+
+	if p.currentToken().In(lexer.ComparisonOps...) || p.currentToken().In(lexer.ArithmeticOps...) {
+		return p.parseShortInfixFunction()
 	}
 
 	if !p.currentTokenIs(lexer.Identifier) || !p.nextTokenIs(lexer.Lambda) {
@@ -173,6 +183,26 @@ func (p *parser) parseLambdaOrPair() ast.Expression {
 	return &ast.FunctionLiteral{
 		Parameter: param,
 		Body:      body,
+	}
+}
+
+func (p *parser) parseShortInfixFunction() ast.Expression {
+	op := p.currentToken().Value
+	p.advance()
+	body := p.parseExpression(Lowest)
+	if body == nil {
+		return nil
+	}
+	if _, ok := p.consume(lexer.RBracket); !ok {
+		return nil
+	}
+	return &ast.FunctionLiteral{
+		Parameter: "x",
+		Body: &ast.InfixExpression{
+			Left: &ast.Identifier{Value: "x"},
+			Operator: op,
+			Right: body,
+		},
 	}
 }
 
@@ -229,7 +259,7 @@ func (p *parser) parsePipeExpression(left ast.Expression) ast.Expression {
 	p.advance()
 
 	switch expr.Direction {
-	case "<<":
+	case "<<", ".":
 		prec++
 	case "<>":
 		prec--
@@ -240,6 +270,31 @@ func (p *parser) parsePipeExpression(left ast.Expression) ast.Expression {
 		return nil
 	}
 
+	return expr
+}
+
+
+func (p *parser) parseCondExpression(left ast.Expression) ast.Expression {
+	expr := &ast.CondExpression{If: left}
+	prec := p.currentPrec()
+
+	if _, ok := p.consume(lexer.If); !ok {
+		return nil
+	}
+
+	expr.Then = p.parseExpression(prec - 1)
+	if expr.Then == nil {
+		return nil
+	}
+	if !p.currentTokenIs(lexer.Else) {
+		expr.Else = makeNil()
+		return expr
+	}
+	p.advance()
+	expr.Else = p.parseExpression(prec - 1)
+	if expr.Else == nil {
+		return nil
+	}
 	return expr
 }
 

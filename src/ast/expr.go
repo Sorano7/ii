@@ -35,6 +35,16 @@ func (c *CharLiteral) Debug() string {
 	return fmt.Sprintf("{ Type: Char, Value: %s }", c.Value)
 }
 
+type StringLiteral struct {
+	Value string
+}
+
+func (s *StringLiteral) expressionNode() {}
+func (s *StringLiteral) String() string  { return s.Value }
+func (s *StringLiteral) Debug() string {
+	return fmt.Sprintf("{ Type: String, Value: %s }", s.Value)
+}
+
 type PairLiteral struct {
 	First  Expression
 	Second Expression
@@ -143,4 +153,19 @@ func (p *PipeExpression) String() string {
 func (p *PipeExpression) Debug() string {
 	return fmt.Sprintf("{ Type: Pipe, Left: %s, Direction: %s, Right: %s }",
 		p.Left.Debug(), p.Direction, p.Right.Debug())
+}
+
+type CondExpression struct {
+	If Expression
+	Then Expression
+	Else Expression
+}
+
+func (c *CondExpression) expressionNode() {}
+func (c *CondExpression) String() string {
+	return fmt.Sprintf("(%s) ?? (%s) !! (%s)", c.If.String(), c.Then.String(), c.Else.String())
+}
+func (c *CondExpression) Debug() string {
+	return fmt.Sprintf("{ Type: Cond, If: %s, Else: %s, Then: %s}", 
+		c.If.Debug(), c.Then.Debug(), c.Else.Debug())	
 }

@@ -1,0 +1,56 @@
+~~ Church Booleans ~~
+true:: a;b; a
+false:: a;b; b
+
+and:: a;b; a.b.false
+or:: a;b; a.true.b
+not:: a; a.false.true
+xor:: a;b; a.not(b).b
+
+~~ Pair ~~
+pair:: a;b;f; f.a.b
+fst:: p; p.true
+snd:: p; p.false
+swap:: p; pair .snd(p) .fst(p)
+
+curry:: f;a;b; f.[a, b]
+uncurry:: f;p; f .fst(p) .snd(p)
+
+~~ List ~~
+isNil:: x; x = nil
+null:: isNil
+
+cons:: pair
+head:: fst
+tail:: snd
+
+foldr:: f;z;xs; null(xs) .z .(f.head(xs) <> foldr.f.z.tail(xs))
+map:: f;xs; foldr .(fcomp.cons.f) .nil .xs
+filter:: f;xs; foldr .(_filter.f) .nil .xs
+_filter:: f;x;xs; f.x .(cons.x.xs) .xs
+
+append:: xs;y; foldr .cons .(cons.y.nil) .xs
+concat:: xs;ys; foldr .cons .ys .xs
+
+fcomp:: f;g;x; f.g(x)
+
+~~ Arithmetic ~~
+pred:: a; a - 1
+succ:: a; a + 1
+add:: a;b; a + b
+sub:: a;b; a - b
+mul:: a;b; a * b
+div:: a;b; a / b
+
+sum:: xs; foldr .add .0 .xs
+
+
+~~ To be added
+filter:: f;[x,xs]; foldr .(f.x .(cons.x.xs) .xs) .nil .xs
+
+[x,xs]; pair .x .xs
+
+p; pair .(fst.p) .(snd.p)
+~~
+
+

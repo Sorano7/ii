@@ -109,6 +109,11 @@ func (e *Evaluator) evalIdentifier(node *ast.Identifier, env *Environment) Value
 		}
 		return val
 	}
+
+	if builtin, ok := builtins[node.Value]; ok {
+		return builtin
+	}
+	
 	return &Undefined{}
 }
 
@@ -230,26 +235,30 @@ func (e *Evaluator) applyFunction(f Value, arg Value) Value {
 		return f
 	}
 
-	fn, ok := f.(*Function)
-	if !ok {
-		return error("Not a function: %s", f.String())
-	}
+	switch fn := f.(type) {
+	case *Function:
+		if fn.Parameter == "" || fn.Parameter == "_" {
+			if arg != nil {
+				return error("Function expects no arguments")
 
-	if fn.Parameter == "" || fn.Parameter == "_" {
-		if arg != nil {
-			return error("Function expects no arguments")
-
+			}
+			return e.Evaluate(fn.Body, fn.Env)
 		}
-		return e.Evaluate(fn.Body, fn.Env)
-	}
 
-	if arg == nil {
-		return error("Function expects argument")
-	}
+		if arg == nil {
+			return error("Function expects argument")
+		}
 
-	childEnv := NewEnvIn(fn.Env)
-	childEnv.Set(fn.Parameter, arg)
-	return e.Evaluate(fn.Body, childEnv)
+		childEnv := NewEnvIn(fn.Env)
+		childEnv.Set(fn.Parameter, arg)
+		return e.Evaluate(fn.Body, childEnv)
+
+	case *Builtin:
+		return fn.Fn(arg)
+
+	default:
+		return error("Not a function: %s", fn.Type())
+	}
 }
 
 func (e *Evaluator) force(v Value) Value {

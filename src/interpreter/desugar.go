@@ -52,6 +52,27 @@ func desugarExpression(node ast.Expression) ast.Expression {
 		}
 
 	case *ast.InfixExpression:
+		switch left := n.Left.(type) {
+		case *ast.StringLiteral:
+			n.Left = stringToArray(left)
+		}
+		switch right := n.Right.(type) {
+		case *ast.StringLiteral:
+			n.Right = stringToArray(right)
+		}
+
+		if leftArr, ok := n.Left.(*ast.ArrayLiteral); ok && n.Operator == "+" {
+			if rightArr, ok := n.Right.(*ast.ArrayLiteral); ok {
+				return &ast.CallExpression{
+					Function: &ast.CallExpression{
+						Function: &ast.Identifier{Value: "concat"},
+						Argument: desugarExpression(leftArr),
+					},
+					Argument: desugarExpression(rightArr),
+				}
+			}
+		}
+
 		return &ast.InfixExpression{
 			Left: desugarExpression(n.Left),
 			Operator: n.Operator,
@@ -66,7 +87,7 @@ func desugarExpression(node ast.Expression) ast.Expression {
 
 	case *ast.PipeExpression:
 		switch n.Direction {
-		case "<<", "<>":
+		case "<<", "<>", ".":
 			return &ast.CallExpression{
 				Function: desugarExpression(n.Left),
 				Argument: desugarExpression(n.Right),
@@ -93,7 +114,30 @@ func desugarExpression(node ast.Expression) ast.Expression {
 			}
 		}
 		return result
+
+	case *ast.StringLiteral:
+		return desugarExpression(stringToArray(n))
+
+	case *ast.CondExpression:
+		return &ast.CallExpression{
+			Function: &ast.CallExpression{
+				Function: desugarExpression(n.If),
+				Argument: desugarExpression(n.Then),
+			},
+			Argument: desugarExpression(n.Else),
+		}
 	}
 
 	return node
+}
+
+func stringToArray(node *ast.StringLiteral) *ast.ArrayLiteral {
+	chars := make([]ast.Expression, 0)
+	for _, c := range node.Value {
+		char := &ast.CharLiteral{Value: "'" + string(c) + "'"}
+		if char.Value != "'\"'" {
+			chars = append(chars, char)
+		}
+	}
+	return &ast.ArrayLiteral{Elements: chars}
 }

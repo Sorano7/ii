@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const Prompt = "|> "
+const Prompt = "ii:: "
 
 type REPL struct {
 	env    *Environment
@@ -24,7 +24,7 @@ func createRepl(out io.Writer) *REPL {
 		eval: createEvaluator(),
 		out: out,
 	}
-	repl.LoadFile("lib/prelude.x", false, false)
+	repl.LoadFile("lib/prelude.ii", false, false)
 	return repl
 }
 

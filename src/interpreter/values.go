@@ -15,6 +15,7 @@ const (
 	ErrorValue     ValueType = "Error"
 	UndefinedValue ValueType = "Undefined"
 	ThunkValue     ValueType = "Thunk"
+	BuiltinValue   ValueType = "Built-in"
 )
 
 type Value interface {
@@ -240,3 +241,12 @@ func (t *Thunk) Force(e *Evaluator) Value {
 	t.evaluated = true
 	return t.value
 }
+
+type BuiltinFunction func(arg Value) Value
+type Builtin struct {
+	Name string
+	Fn   BuiltinFunction
+}
+
+func (b *Builtin) Type() ValueType{ return BuiltinValue }
+func (b *Builtin) String() string { return fmt.Sprintf("<builtin:%s>", b.Name) }
