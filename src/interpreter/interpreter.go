@@ -10,6 +10,7 @@ import (
 )
 
 const Prompt = "ii:: "
+const Prelude = "lib/prelude.ii"
 
 type REPL struct {
 	env    *Environment
@@ -24,8 +25,12 @@ func createRepl(out io.Writer) *REPL {
 		eval: createEvaluator(),
 		out: out,
 	}
-	repl.execFile("lib/prelude.ii", false, false)
+	repl.loadPrelude()
 	return repl
+}
+
+func (r *REPL) loadPrelude() {
+	r.execFile(Prelude, true, false)
 }
 
 func (r *REPL) evaluateAndPrint(input string) {
@@ -77,16 +82,14 @@ func (r *REPL) handleCommand(input string) bool {
 		}
 		return true
 
-	case ":e", ":exec":
-		if len(parts) > 1 {
-			r.execFile(parts[1], true, true)
-		}
-		return true
-
 	case ":a", ":ast":
 		if len(parts) > 1 {
 			r.printAST(strings.Join(parts[1:], ""))
 		}
+		return true
+
+	case ":r", ":reload":
+		r.loadPrelude()
 		return true
 	}
 	fmt.Fprintf(r.out, "Unknown command: %s\n", cmd)
@@ -104,6 +107,10 @@ func (r *REPL) printAST(src string) {
 }
 
 func (r *REPL) execFile(filename string, clearEnv bool, printMain bool) {
+	if clearEnv {
+		r.env = NewEnv()
+	}
+	
 	bytes, err := os.ReadFile(filename)
 	if err != nil {
 		fmt.Fprintf(r.out, "[Error] %s\n", err)
@@ -117,10 +124,6 @@ func (r *REPL) execFile(filename string, clearEnv bool, printMain bool) {
 		if printMain || isError(value) {
 			fmt.Fprintln(r.out, value.String())
 		}
-	}
-
-	if clearEnv {
-		r.env = NewEnv()
 	}
 }
 

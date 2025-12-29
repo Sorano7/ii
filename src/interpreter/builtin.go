@@ -7,33 +7,16 @@ import (
 	"strconv"
 )
 
-var builtins = map[string]*Builtin{
-	"write": {Name: "write", Fn: builtinWrite},
-	"read":  {Name: "read", Fn: builtinRead},
-	"string":   {Name: "string", Fn: builtinString},
-	"number":   {Name: "number", Fn: builtinNumber},
-	"chr":   {Name: "chr", Fn: builtinChr},
-	"ord":   {Name: "ord", Fn: builtinOrd},
-}
-
-func builtinWrite(arg Value) Value {
+func (e *Evaluator) print(arg Value) Value {
 	if arg == nil {
 		fmt.Println()
-		return arg
+		return &Nil{}
 	}
-
-	switch v := arg.(type) {
-	case *String:
-		fmt.Println(v.Value)
-	case *Char:
-		fmt.Println(v.Value)
-	default:
-		fmt.Println(v.String())
-	}
-	return arg
+	fmt.Println(arg.String())
+	return &Number{Value: 0}
 }
 
-func builtinRead(arg Value) Value {
+func (e *Evaluator) read(arg Value) Value {
 	if !isNil(arg) {
 		return error("Function expects no argument")
 	}
@@ -49,7 +32,7 @@ func builtinRead(arg Value) Value {
 	return &String{Value: ""}
 }
 
-func builtinString(arg Value) Value {
+func (e *Evaluator) stringify(arg Value) Value {
 	if isNil(arg) {
 		return &String{Value: ""}
 	}
@@ -61,7 +44,7 @@ func builtinString(arg Value) Value {
 	}
 }
 
-func builtinNumber(arg Value) Value {
+func (e *Evaluator) number(arg Value) Value {
 	if isNil(arg) {
 		return error("Invalid argument")
 	}
@@ -72,36 +55,43 @@ func builtinNumber(arg Value) Value {
 	case *String:
 		val, err := strconv.ParseFloat(v.Value, 64)
 		if err != nil {
-			return error("Cannot parse as number: %s", v.Value)
+			return &Nil{}
+		}
+		return &Number{Value: val}
+
+	case *Char:
+		val, err := strconv.ParseFloat(v.Value, 64)
+		if err != nil {
+			return &Nil{}
 		}
 		return &Number{Value: val}
 
 	default:
-		return error("Invalid argument type: %s", arg.Type())
+		return &Nil{}
 	}
 }
 
-func builtinOrd(arg Value) Value {
+func (e *Evaluator) ord(arg Value) Value {
 	switch v := arg.(type) {
 	case *Char:
 		chars := []rune(v.Value)
 		return &Number{Value: float64(int(chars[0]))}
 	default:
-		return error("Invalid argument type: %s", arg.Type())
+		return &Nil{}
 	}
 }
 
-func builtinChr(arg Value) Value {
+func (e *Evaluator) chr(arg Value) Value {
 	switch v := arg.(type) {
 	case *Number:
 		i, ok := floatToInt(v.Value)
 		if !ok {
-			return error("Invalid argument type: float")
+			return &Nil{}
 		}
 		return &Char{Value: string(rune(i))}
 
 	default:
-		return error("Invalid argument type: %s", arg.Type())
+		return &Nil{}
 	}
 }
 

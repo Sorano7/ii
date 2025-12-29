@@ -169,3 +169,17 @@ func (c *CondExpression) Debug() string {
 	return fmt.Sprintf("{ Type: Cond, If: %s, Else: %s, Then: %s}", 
 		c.If.Debug(), c.Then.Debug(), c.Else.Debug())	
 }
+
+type FCompExpression struct {
+	First Expression
+	Second Expression
+}
+
+func (f *FCompExpression) expressionNode() {}
+func (f *FCompExpression) String() string {
+	return fmt.Sprintf("[%s | %s]", f.First.String(), f.Second.String())
+}
+func (f *FCompExpression) Debug() string {
+	return fmt.Sprintf("{ Type: FComp, First: %s, Second: %s }", 
+		f.First.Debug(), f.Second.Debug())	
+}

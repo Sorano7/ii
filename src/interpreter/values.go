@@ -42,16 +42,16 @@ func (b *Bool) String() string {
 }
 
 type BoolThunk struct {
-	Cond bool
+	Cond  bool
 	First Value
 }
 
 func (b *BoolThunk) Type() ValueType { return BoolThunkValue }
-func (b *BoolThunk) String() string { 
+func (b *BoolThunk) String() string {
 	if b.Cond {
 		return fmt.Sprintf("[x; %s]", b.First.String())
 	}
-	return "[x; x]" 
+	return "[x; x]"
 }
 
 type Number struct {

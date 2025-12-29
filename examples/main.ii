@@ -1,0 +1,4 @@
+fizzbuzz:: xs; map ._fizzbuzz .xs
+_fizzbuzz:: x; (x%3=0??"fizz"!!"") + (x%5=0??"buzz"!!"") >> nullThen.x
+
+main:: read >> [seq(1)|number] >> fizzbuzz >> filter.[not|isNumber] >> [fac|len] >> print

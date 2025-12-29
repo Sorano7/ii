@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"lambda/src/ast"
 	"lambda/src/lexer"
 )
@@ -58,13 +59,6 @@ func (p *parser) advance() lexer.Token {
 	return tk
 }
 
-func (p *parser) consume(t lexer.TokenType) (lexer.Token, bool) {
-	if !p.currentTokenIs(t) {
-		return p.currentToken(), false
-	}
-	return p.advance(), true
-}
-
 func (p *parser) peek(n int) lexer.Token {
 	if p.currentToken().In(lexer.EOF) {
 		return p.currentToken()
@@ -79,12 +73,25 @@ func (p *parser) currentPrec() precedence {
 	return Lowest
 }
 
-func (p *parser) currentTokenIs(t lexer.TokenType) bool {
-	return p.currentToken().In(t)
+func (p *parser) advanceOrPanic(t lexer.TokenType) {
+	if p.currentTokenIs(t) {
+		p.advance()
+		return
+	}
+	p.panic("Expects %s, found (%s)", t.String(), p.currentToken().String())
 }
 
-func (p *parser) nextTokenIs(t lexer.TokenType) bool {
-	return p.peek(1).In(t)
+func (p *parser) panic(format string, a...any) {
+	msg := fmt.Sprintf(format, a...)
+	panic(msg)
+}
+
+func (p *parser) currentTokenIs(t ...lexer.TokenType) bool {
+	return p.currentToken().In(t...)
+}
+
+func (p *parser) nextTokenIs(t ...lexer.TokenType) bool {
+	return p.peek(1).In(t...)
 }
 
 func (p *parser) registerPrefix(f prefixParseFn, ts ...lexer.TokenType) {
@@ -129,7 +136,7 @@ func createParser(tokens []lexer.Token) *parser {
 	return p
 }
 
-func Parse(src string) (*ast.Program, bool){
+func Parse(src string) (*ast.Program, bool) {
 	tokens := lexer.Tokenize(src)
 	if tokens == nil {
 		return nil, false
@@ -141,9 +148,10 @@ func Parse(src string) (*ast.Program, bool){
 	for !p.currentTokenIs(lexer.EOF) {
 		start := p.pos
 		stmt := p.parseStatement()
-		if stmt != nil {
-			program.Statements = append(program.Statements, stmt)
+		if stmt == nil {
+			return nil, false
 		}
+		program.Statements = append(program.Statements, stmt)
 		if p.pos == start {
 			p.advance()
 		}

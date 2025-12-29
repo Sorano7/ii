@@ -79,6 +79,18 @@ func desugarExpression(node ast.Expression) ast.Expression {
 			},
 			Argument: desugarExpression(n.Else),
 		}
+
+	case *ast.FCompExpression:
+		return &ast.FunctionLiteral{
+			Parameter: "x",
+			Body: &ast.CallExpression{
+				Function: n.First,
+				Argument: &ast.CallExpression{
+					Function: n.Second,
+					Argument: &ast.Identifier{Value: "x"},
+				},
+			},
+		}
 	}
 
 	return node

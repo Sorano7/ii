@@ -18,11 +18,11 @@ func makeNil() ast.Expression {
 func (p *parser) parseExpression(prec precedence) ast.Expression {
 	prefix := p.prefixParseFns[p.currentToken().Type]
 	if prefix == nil {
-		return nil
+		p.panic("No prefix found for: %s", p.currentToken().Type.String())
 	}
 	left := prefix()
 	if left == nil {
-		return nil
+		p.panic("Missing expression")
 	}
 
 	for !p.nextTokenIs(lexer.EOF) && prec < p.currentPrec() {
@@ -32,7 +32,7 @@ func (p *parser) parseExpression(prec precedence) ast.Expression {
 		}
 		left = infix(left)
 		if left == nil {
-			return nil
+			p.panic("Missing lhs expression")
 		}
 	}
 
@@ -48,7 +48,7 @@ func (p *parser) parseIdentifier() ast.Expression {
 func (p *parser) parseNumberLiteral() ast.Expression {
 	value, err := strconv.ParseFloat(p.currentToken().Value, 64)
 	if err != nil {
-		return nil
+		p.panic("Invalid number literal")
 	}
 
 	num := &ast.NumberLiteral{Value: value}
@@ -76,7 +76,7 @@ func (p *parser) parsePrefixExpression() ast.Expression {
 	p.advance()
 	expr.Right = p.parseExpression(Prefix)
 	if expr.Right == nil {
-		return nil
+		p.panic("Missing rhs expression for prefix")
 	}
 
 	return expr
@@ -90,31 +90,27 @@ func (p *parser) parseInfixExpression(left ast.Expression) ast.Expression {
 
 	prec := p.currentPrec()
 	p.advance()
+
 	expr.Right = p.parseExpression(prec)
 	if expr.Right == nil {
-		return nil
+		p.panic("Missing rhs expression for infix")
 	}
 
 	return expr
 }
 
 func (p *parser) parseGroupedExpression() ast.Expression {
-	if _, ok := p.consume(lexer.LParen); !ok {
-		return nil
-	}
-
+	p.advanceOrPanic(lexer.LParen)
 	if p.currentTokenIs(lexer.RParen) {
-		return nil
+		p.panic("Empty grouped expression")
 	}
 
 	exp := p.parseExpression(Lowest)
 	if exp == nil {
-		return nil
+		p.panic("Missing expression in ()")
 	}
 
-	if _, ok := p.consume(lexer.RParen); !ok {
-		return nil
-	}
+	p.advanceOrPanic(lexer.RParen)
 	return exp
 }
 
@@ -126,7 +122,7 @@ func (p *parser) parsePair() ast.Expression {
 	
 	first := p.parseExpression(Lowest)
 	if first == nil {
-		return nil
+		p.panic("Missing first expression in pair")
 	}
 
 	if p.currentTokenIs(lexer.RBracket) {
@@ -137,16 +133,18 @@ func (p *parser) parsePair() ast.Expression {
 		}
 	} 
 
-	p.advance()
+	if p.currentTokenIs(lexer.Bar) {
+		return p.parseFCompExpression(first)
+	}
+
+	p.advanceOrPanic(lexer.Comma)
 
 	second := p.parseExpression(Lowest)
 	if second == nil {
-		return nil
+		p.panic("Missing second expression in pair")
 	}
 
-	if _, ok := p.consume(lexer.RBracket); !ok {
-		return nil
-	}
+	p.advanceOrPanic(lexer.RBracket)
 	
 	return &ast.PairLiteral{
 		First: first,
@@ -155,15 +153,13 @@ func (p *parser) parsePair() ast.Expression {
 }
 
 func (p *parser) parseFunctionOrPair() ast.Expression {
-	if _, ok := p.consume(lexer.LBracket); !ok {
-		return nil
-	}
+	p.advanceOrPanic(lexer.LBracket)
 
-	if p.currentToken().In(lexer.ComparisonOps...) || p.currentToken().In(lexer.ArithmeticOps...) {
+	if p.currentTokenIs(lexer.ComparisonOps...) || p.currentTokenIs(lexer.ArithmeticOps...) {
 		return p.parseShortInfixFunction()
 	}
 
-	if !p.currentTokenIs(lexer.Identifier) || !p.nextTokenIs(lexer.Lambda) {
+	if !p.nextTokenIs(lexer.Lambda) {
 		return p.parsePair()
 	}
 
@@ -173,12 +169,10 @@ func (p *parser) parseFunctionOrPair() ast.Expression {
 
 	body := p.parseExpression(Lowest)
 	if body == nil {
-		return nil
+		p.panic("Missing anonymous function body")
 	}
 
-	if _, ok := p.consume(lexer.RBracket); !ok {
-		return nil
-	}
+	p.advanceOrPanic(lexer.RBracket)
 
 	return &ast.FunctionLiteral{
 		Parameter: param,
@@ -189,13 +183,14 @@ func (p *parser) parseFunctionOrPair() ast.Expression {
 func (p *parser) parseShortInfixFunction() ast.Expression {
 	op := p.currentToken().Value
 	p.advance()
+
 	body := p.parseExpression(Lowest)
 	if body == nil {
-		return nil
+		p.panic("Missing short infix function body")
 	}
-	if _, ok := p.consume(lexer.RBracket); !ok {
-		return nil
-	}
+
+	p.advanceOrPanic(lexer.RBracket)
+
 	return &ast.FunctionLiteral{
 		Parameter: "x",
 		Body: &ast.InfixExpression{
@@ -206,11 +201,25 @@ func (p *parser) parseShortInfixFunction() ast.Expression {
 	}
 }
 
+func (p *parser) parseFCompExpression(first ast.Expression) ast.Expression {
+	p.advanceOrPanic(lexer.Bar)
+
+	second := p.parseExpression(Lowest)
+	if second == nil {
+		p.panic("Missing second expression for fcomp")
+	}
+
+	p.advanceOrPanic(lexer.RBracket)
+
+	return &ast.FCompExpression{
+		First: first,
+		Second: second,
+	}
+}
+
 func (p *parser) parseCallExpression(function ast.Expression) ast.Expression {
 	exp := &ast.CallExpression{Function: function}
-	if _, ok := p.consume(lexer.LParen); !ok {
-		return nil
-	}
+	p.advanceOrPanic(lexer.LParen)
 
 	if p.currentTokenIs(lexer.RParen) {
 		p.advance()
@@ -219,12 +228,10 @@ func (p *parser) parseCallExpression(function ast.Expression) ast.Expression {
 
 	exp.Argument = p.parseExpression(Lowest)
 	if exp.Argument == nil {
-		return nil
+		p.panic("Missing call expression argument")
 	}
 
-	if _, ok := p.consume(lexer.RParen); !ok {
-		return nil
-	}
+	p.advanceOrPanic(lexer.RParen)
 
 	return exp
 }
@@ -232,7 +239,7 @@ func (p *parser) parseCallExpression(function ast.Expression) ast.Expression {
 func (p *parser) parseLambdaExpression(left ast.Expression) ast.Expression {
 	ident, ok := left.(*ast.Identifier)
 	if !ok {
-		return nil
+		p.panic("Expects identifier, found %T", left)
 	}
 
 	param := ident.Value
@@ -240,7 +247,7 @@ func (p *parser) parseLambdaExpression(left ast.Expression) ast.Expression {
 	p.advance()
 	body := p.parseExpression(Lowest)
 	if body == nil {
-		return nil
+		p.panic("Missing lambda function body")
 	}
 
 	return &ast.FunctionLiteral{
@@ -267,7 +274,7 @@ func (p *parser) parsePipeExpression(left ast.Expression) ast.Expression {
 	expr.Right = p.parseExpression(prec)
 
 	if expr.Right == nil {
-		return nil
+		p.panic("Missing rhs expression for pipe operator")
 	}
 
 	return expr
@@ -278,30 +285,29 @@ func (p *parser) parseCondExpression(left ast.Expression) ast.Expression {
 	expr := &ast.CondExpression{If: left}
 	prec := p.currentPrec()
 
-	if _, ok := p.consume(lexer.If); !ok {
-		return nil
-	}
+	p.advanceOrPanic(lexer.If)
 
 	expr.Then = p.parseExpression(prec - 1)
 	if expr.Then == nil {
-		return nil
+		p.panic("Missing then clause expression")
 	}
+
 	if !p.currentTokenIs(lexer.Else) {
 		expr.Else = makeNil()
 		return expr
 	}
 	p.advance()
+
 	expr.Else = p.parseExpression(prec - 1)
 	if expr.Else == nil {
-		return nil
+		p.panic("Missing else clause expression")
 	}
 	return expr
 }
 
 func (p *parser) parseArrayLiteral() ast.Expression {
-	if _, ok := p.consume(lexer.LCurly); !ok {
-		return nil
-	}
+	p.advanceOrPanic(lexer.LCurly)
+
 	if p.currentTokenIs(lexer.RCurly) {
 		p.advance()
 		return makeNil()
@@ -311,7 +317,7 @@ func (p *parser) parseArrayLiteral() ast.Expression {
 
 	head := p.parseExpression(Lowest)
 	if head == nil {
-		return nil
+		p.panic("Missing first element in array")
 	}
 
 	if p.currentTokenIs(lexer.Ellipsis) {
@@ -327,7 +333,7 @@ func (p *parser) parseArrayLiteral() ast.Expression {
 	for !p.currentTokenIs(lexer.RCurly) {
 		expr := p.parseExpression(Lowest)
 		if expr == nil {
-			return nil
+			p.panic("Missing expression in array")
 		}
 		array.Elements = append(array.Elements, expr)
 
@@ -339,12 +345,10 @@ func (p *parser) parseArrayLiteral() ast.Expression {
 		if p.currentTokenIs(lexer.RCurly) {
             break
         }
-		return nil
+		p.panic("Missing comma in array")
 	}
 
-	if _, ok := p.consume(lexer.RCurly); !ok {
-        return nil
-    }
+	p.advanceOrPanic(lexer.RCurly)
 
 	return array
 }
@@ -352,16 +356,18 @@ func (p *parser) parseArrayLiteral() ast.Expression {
 func (p *parser) parseSequence(head ast.Expression) ast.Expression {
 	a, ok := head.(*ast.NumberLiteral)
 	if !ok {
-		return nil
+		p.panic("Expects number, found: %T", head)
 	}
-	p.advance()
+
+	p.advanceOrPanic(lexer.Ellipsis)
+
 	b, ok := p.parseExpression(Lowest).(*ast.NumberLiteral)
 	if !ok {
-		return nil
+		p.panic("Expects number, found: %T", head)
 	}
-	if _, ok := p.consume(lexer.RCurly); !ok {
-		return nil
-	}
+
+	p.advanceOrPanic(lexer.RCurly)
+
 	return &ast.CallExpression{
 		Function: &ast.CallExpression{
 			Function: &ast.Identifier{Value: "seq"},

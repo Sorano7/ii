@@ -5,10 +5,25 @@ import (
 	"math"
 )
 
-type Evaluator struct{}
+type Evaluator struct {
+	builtin map[string]BuiltinFunction
+}
 
 func createEvaluator() *Evaluator {
-	return &Evaluator{}
+	e:= &Evaluator{make(map[string]BuiltinFunction)}
+
+	e.registerBuiltin("print", e.print)
+	e.registerBuiltin("read", e.read)
+	e.registerBuiltin("string", e.stringify)
+	e.registerBuiltin("number", e.number)
+	e.registerBuiltin("ord", e.ord)
+	e.registerBuiltin("chr", e.chr)
+
+	return e
+}
+
+func (e *Evaluator) registerBuiltin(name string, fn BuiltinFunction) {
+	e.builtin[name] = fn
 }
 
 func (e *Evaluator) EvaluateProgram(program *ast.Program, env *Environment, exprCount int) Value {
@@ -138,7 +153,9 @@ func (e *Evaluator) evalIdentifier(node *ast.Identifier, env *Environment) Value
 		return val
 	}
 
-	if builtin, ok := builtins[node.Value]; ok {
+	if bfn, ok := e.builtin[node.Value]; ok {
+		builtin := &Builtin{Name: node.Value, Fn: bfn }
+
 		if builtin.Name == "read" {
 			return e.applyFunction(builtin, nil)
 		}
@@ -166,9 +183,15 @@ func (e *Evaluator) evalMinusPrefix(right Value) Value {
 	return error("Unknown operator: -%s", right.Type())
 }
 
+func isThunk(v Value) bool {
+	_, ok := v.(*Thunk)
+	return ok
+}
+
 func (e *Evaluator) evalInfix(operator string, left, right Value) Value {
-	left = e.force(left)
-	right = e.force(right)
+	if isThunk(left) || isThunk(right) {
+		return e.evalInfix(operator, e.force(left), e.force(right))
+	}
 	if isError(left) || isError(right) {
 		return left
 	}
@@ -210,12 +233,24 @@ func (e *Evaluator) evalPlus(left, right Value) Value {
 	case left.Type() == CharValue && right.Type() == CharValue:
 		return &String{Value: left.(*Char).Value + right.(*Char).Value}
 
+	case left.Type() == CharValue && right.Type() == StringValue:
+		return &String{Value: left.(*Char).Value + right.(*String).Value}
+		
+	case left.Type() == StringValue && right.Type() == CharValue:
+		return &String{Value: left.(*String).Value + right.(*Char).Value}
+
 	case left.Type() == StringValue && right.Type() == StringValue:
 		return &String{Value: left.(*String).Value + right.(*String).Value}
 
 	case left.Type() == ArrayValue && right.Type() == ArrayValue:
 		return &Array{
 			Elements: append(left.(*Array).Elements, right.(*Array).Elements...),
+		}
+
+	case right.Type() == NilValue:
+		switch l := left.(type) {
+		case *Array, *String, *Char:
+			return l
 		}
 	}
 	return error("Invalid operation: %s + %s", left.Type(), right.Type())
@@ -455,6 +490,9 @@ func (e *Evaluator) applyFunction(f Value, arg Value) Value {
 
 	case *Thunk:
 		return e.applyFunction(e.force(fn), arg)
+
+	case *Undefined:
+		return &Undefined{}
 
 	default:
 		return error("Not a function: %s", fn.Type())

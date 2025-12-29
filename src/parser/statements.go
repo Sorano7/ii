@@ -13,19 +13,17 @@ func (p *parser) parseStatement() ast.Statement {
 }
 
 func (p *parser) parseBindingStatement() *ast.BindingStatement {
-	stmt := &ast.BindingStatement{
-		Name: p.currentToken().Value,
-	}
-	if !p.nextTokenIs(lexer.Assignment) {
-		return nil
-	}
+	stmt := &ast.BindingStatement{Name: p.currentToken().Value}
+	p.advanceOrPanic(lexer.Identifier)
+	p.advanceOrPanic(lexer.Assignment)
 
-	p.advance()
-	p.advance()
+	if p.currentTokenIs(lexer.EOF) {
+		p.panic("Missing assignment body")
+	}
 
 	stmt.Value = p.parseExpression(Lowest)
 	if stmt.Value == nil {
-		return nil
+		p.panic("Missing assignment body")
 	}
 
 	return stmt
@@ -35,7 +33,7 @@ func (p *parser) parseExpressionStatement() *ast.ExpressionStatement {
 	stmt := &ast.ExpressionStatement{}
 	stmt.Expression = p.parseExpression(Lowest)
 	if stmt.Expression == nil {
-		return nil
+		p.panic("Missing expression")
 	}
 
 	return stmt

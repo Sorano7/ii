@@ -34,6 +34,7 @@ const (
 	If
 	Else
 	Ellipsis
+	Bar
 
 	// -- Comparison
 	Equals
@@ -87,6 +88,7 @@ var TokenTypeNames = map[TokenType]string{
 	If:            "If",
 	Else:          "Else",
 	Ellipsis:      "Ellipsis",
+	Bar:           "Bar",
 	Equals:        "Equals",
 	NotEquals:     "NotEquals",
 	Less:          "Less",

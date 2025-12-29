@@ -1,6 +1,7 @@
 ~~ Basic ~~
-const:: a; a
+ii:: ii
 fcomp:: f;g;x; f.g(x)
+flip:: f;x;y; f.y.x
 
 ~~ Logic ~~
 and:: a;b; a.b.false
@@ -15,10 +16,10 @@ ite:: f;a;b; f.a.b
 pair:: a;b;f; f.a.b
 fst:: p; p.true
 snd:: p; p.false
-swap:: p; pair .snd(p) .fst(p)
-
+swap:: p; pair (snt.p) (fst.p)
 curry:: f;a;b; f.[a, b]
-uncurry:: f;p; f .fst(p) .snd(p)
+uncurry:: f;p; f (fst.p) (snd.p)
+showPair:: p; "[" + string(fst.p) + ", " + string(snd.p) + "]" >> print
 
 ~~ List ~~
 isNil:: x; x = nil
@@ -30,6 +31,7 @@ head:: fst
 tail:: snd
 
 foldr:: f;z;xs; null(xs) .z .(f.head(xs) <> foldr.f.z.tail(xs))
+foldl:: f;z;xs; null(xs) .z <> foldl.f.(f.z.head(xs)).tail(xs)
 map:: f;xs; foldr .(fcomp.cons.f) .nil .xs
 filter:: f;xs; foldr .(_filter.f) .nil .xs
 _filter:: f;x;xs; f.x .(cons.x.xs) .xs
@@ -38,11 +40,18 @@ index:: x;xs; _index.x.xs.0
 _index:: x;xs;z; or .null(xs) .(x=head(xs)) ?? z !! _index.x.tail(xs).(z+1)
 at:: n;xs; _at.n.xs.0
 _at:: n;xs;z; or .null(xs) .(z=n) ?? head(xs) !! _at.n.tail(xs).(z+1)
-
 append:: xs;y; foldr .cons .(cons.y.nil) .xs
 concat:: xs;ys; foldr .cons .ys .xs
+reverse:: xs; foldl.(flip.cons).nil.xs
+seq:: l;h; (l>=h) ?? cons.l.nil !! cons.l.seq(l+1)(h)
+join:: z;xs; foldr.[a;b; null(b) ?? a+b !! a+z+b]."".xs
+showList:: xs; map.string.xs >> join.", " >> [x; "{ "+ x + " }"] >> print
 
-seq:: l;h; (l=h) ?? cons.l.nil !! cons.l.seq(l+1)(h) 
+asPair:: xs; pair .(head.xs) .head(tail.xs)
+
+~~ String ~~
+isSpace:: x; x=' '
+showString:: xs; join."".xs >> print
 
 ~~ Arithmetic ~~
 pred:: a; a - 1
@@ -59,16 +68,4 @@ fib:: n; (n=0) ?? 0 !! (n=1) ?? 1 !! (fib(n-1) + fib(n-2))
 isOdd:: n; n % 2 = 1
 isEven:: n; n % 2 = 0
 
-~~ String ~~ 
-~ split:: z; xs; 
-
-
-~~ To be added
-filter:: f;[x,xs]; foldr .(f.x .(cons.x.xs) .xs) .nil .xs
-
-[x,xs]; pair .x .xs
-
-p; pair .(fst.p) .(snd.p)
-~~
-
-
+isNumber:: n; number.n != nil
